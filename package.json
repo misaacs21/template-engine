@@ -1,0 +1,12 @@
+{
+    "name": "@misaacs21/template-engine",
+    "version": "0.0.1",
+    "private": true,
+    "scripts": {
+        "test": "vitest"
+    },
+    "devDependencies": {
+        "jsdom": "^20.0.2",
+        "vitest": "^0.24.3"
+    }
+}
