@@ -3,9 +3,15 @@ let templateDelimiters
 let templateRegex
 
 class Subscriber {
-    constructor(domElement) {
+    constructor(domElement, type) {
         this.domElement = domElement;
         this.templateContent = domElement.textContent;
+        this.updateType = type;
+        this.attrs = [];
+    }
+
+    addAttr (attrName) {
+        this.attrs.push(attrName)
     }
 }
 
@@ -20,40 +26,65 @@ const replaceDelimiters = (data, text) => {
     })
 }
 
-const compileNodeChildren = (root, data) => {
-    if (root.childNodes.length === 0) {
-        return
+const compileNode = (root, data) => {
+    if (root.nodeType === Node.TEXT_NODE) {
+        root.textContent = root.textContent.replace(templateRegex, (match) => {
+            const key = match.substring(templateDelimiters[0].length, match.length - templateDelimiters[1].length).trim()
+            const content = data[key]
+            if (content !== undefined) {
+                content.subscribers.add(new Subscriber(root, 'text'))
+                return content.value
+            }
+            return match
+        })
     }
-    for (let child of root.childNodes) {
-        if (child.nodeType === Node.TEXT_NODE) {
-            child.textContent = child.textContent.replace(templateRegex, (match) => {
+    else if (root.nodeType === Node.ELEMENT_NODE) {
+        const subscriber = new Subscriber(root, 'attr')
+        for (const attribute of root.attributes) {
+            root.setAttribute(attribute.nodeName, attribute.value.replace(templateRegex, (match) => {
                 const key = match.substring(templateDelimiters[0].length, match.length - templateDelimiters[1].length).trim()
                 const content = data[key]
                 if (content !== undefined) {
-                    content.subscribers.push(new Subscriber(child))
+                    subscriber.addAttr(attribute.nodeName)
+                    content.subscribers.add(subscriber)
                     return content.value
                 }
                 return match
-            })        
+            }))
         }
-        compileNodeChildren(child, data)
-    }      
+    }
+
+    if (root.childNodes.length === 0) {
+        return
+    }
+
+    for (const child of root.childNodes) {
+        compileNode(child, data)
+    }
 }
 
 export const reactive = (data) => {
     const reactiveData = {}
-    for (let [key, value] of Object.entries(data)) {
+    for (const [key, value] of Object.entries(data)) {
         reactiveData[key] = {
             value: value,
-            subscribers: []
+            subscribers: new Set()
         }
         Object.defineProperty(data, key, {
-            subscribers: [],
             get () { return reactiveData[key] },
             set(val) {
                 reactiveData[key].value = val
-                for (let subscriber of reactiveData[key].subscribers) {
-                    subscriber.domElement.textContent = replaceDelimiters(this, subscriber.templateContent)
+                for (const subscriber of reactiveData[key].subscribers) {
+                    switch (subscriber.updateType) {
+                        case 'text':
+                            subscriber.domElement.textContent = replaceDelimiters(this, subscriber.templateContent)
+                            break
+                        case 'attr':
+                            for (const attr of subscriber.attrs) {
+                                subscriber.domElement.setAttribute(attr, val)
+                            }
+                            break
+                    }
                 }
             }
         })
@@ -67,11 +98,12 @@ export const compile = (data, delimiters = ['{{', '}}']) => {
     return (template) => {
         const domTree = document.createDocumentFragment()
         const html = parser.parseFromString(template[0], 'text/html').body.children
+        
         for (const child of html) {
             domTree.appendChild(child)
         }
         for (const child of domTree.children) {
-            compileNodeChildren(child, data)
+            compileNode(child, data)
         }
         return domTree
     }
