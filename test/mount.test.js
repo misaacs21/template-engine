@@ -34,13 +34,17 @@ describe('compile', () => {
         const data = reactive({ string: 'world' })
         const template = compile(data, ['<%=', '%>'])`<div>Hello <%= string %></div>`
         expect(template.textContent).toBe(`Hello world`)
-    })    
-
+    })
     describe('textContent', () => {
         it('interpolates node content with data', () => {
             const data = reactive({ string: 'world' })
             const template = compile(data)`<div>Hello {{ string }}</div>`
             expect(template.textContent).toBe(`Hello world`)
+        })
+        it('only interpolates content within matching pair of delimiters', () => {
+            const data = reactive({ string: 'world' })
+            const template = compile(data)`<div>Hello <span>{{</span> {{ string }}</div>`
+            expect(template.textContent).toBe(`Hello {{ world`)
         })
         it('interpolates nested element content with data', () => {
             const data = reactive({ string: 'world', string2: 'hello' })

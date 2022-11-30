@@ -15,41 +15,29 @@ class Subscriber {
     }
 }
 
-const replaceDelimiters = (data, text) => {
+const replaceDelimiters = (data, text, subscriberCallback) => {
     return text.replace(templateRegex, (match) => {
         const key = match.substring(templateDelimiters[0].length, match.length - templateDelimiters[1].length).trim()
         const content = data[key]
         if (content !== undefined) {
+            if (subscriberCallback) subscriberCallback(content)
             return content.value
         }
+
         return match
     })
 }
 
 const compileNode = (root, data) => {
     if (root.nodeType === Node.TEXT_NODE) {
-        root.textContent = root.textContent.replace(templateRegex, (match) => {
-            const key = match.substring(templateDelimiters[0].length, match.length - templateDelimiters[1].length).trim()
-            const content = data[key]
-            if (content !== undefined) {
-                content.subscribers.add(new Subscriber(root, 'text'))
-                return content.value
-            }
-            return match
-        })
+        root.textContent = replaceDelimiters(data, root.textContent, (data) => data.subscribers.add(new Subscriber(root, 'text')))
     }
     else if (root.nodeType === Node.ELEMENT_NODE) {
         const subscriber = new Subscriber(root, 'attr')
         for (const attribute of root.attributes) {
-            root.setAttribute(attribute.nodeName, attribute.value.replace(templateRegex, (match) => {
-                const key = match.substring(templateDelimiters[0].length, match.length - templateDelimiters[1].length).trim()
-                const content = data[key]
-                if (content !== undefined) {
-                    subscriber.addAttr(attribute.nodeName)
-                    content.subscribers.add(subscriber)
-                    return content.value
-                }
-                return match
+            root.setAttribute(attribute.nodeName, replaceDelimiters(data, attribute.value, (data) => {
+                subscriber.addAttr(attribute.nodeName)
+                data.subscribers.add(subscriber)
             }))
         }
     }
