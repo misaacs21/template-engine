@@ -28,6 +28,13 @@ describe('reactive render', () => {
         expect(document.body.querySelector('div').getAttribute('foo')).toBe('foo')
         expect(document.body.querySelector('div').getAttribute('bar')).toBe('foo')
     })
+    it('executed javascript updates on data change', () => {
+        const data = reactive({ num1: 1, num2: 2 })
+        const template = compile(data)`<div>My favorite number is {{ num1 + num2 }}</div>`
+        render(template)
+        data.num1 = 2
+        expect(document.body.textContent).toBe('My favorite number is 4')
+    })
 })
 describe('compile', () => {
     it('accepts different delimiters', () => {
@@ -56,6 +63,11 @@ describe('compile', () => {
             const template = compile(data)`<div>Hello {{ string }} <p>hello!</p></div>`
             expect(template.textContent).toBe(`Hello world hello!`)
         })
+        it('parses provided javascript', () => {
+            const data = reactive({ num1: 1, num2: 2 })
+            const template = compile(data)`<div>My favorite number is {{ num1 + num2 }}!</div>`
+            expect(template.textContent).toBe(`My favorite number is 3!`)
+        })
     })
     describe('attributes', () => {
         it('interpolates node attributes with data', () => {
@@ -73,6 +85,11 @@ describe('compile', () => {
             const data = reactive({ data: 'bar' })
             const template = compile(data)`<div bar="foo"><p foo="{{ data }}">Hello world!</p></div>`
             expect(template.querySelector('div').getAttribute('bar')).toBe('foo')
+        })
+        it('parses provided javascript', () => {
+            const data = reactive({ num1: 1, num2: 2 })
+            const template = compile(data)`<div foo="{{ num1 + num2 }}">Hello world!</div>`
+            expect(template.querySelector('div').getAttribute('foo')).toBe('3')
         })
     })
 })

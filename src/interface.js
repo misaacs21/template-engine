@@ -17,14 +17,21 @@ class Subscriber {
 
 const replaceDelimiters = (data, text, subscriberCallback) => {
     return text.replace(templateRegex, (match) => {
-        const key = match.substring(templateDelimiters[0].length, match.length - templateDelimiters[1].length).trim()
-        const content = data[key]
+        const value = match.substring(templateDelimiters[0].length, match.length - templateDelimiters[1].length).trim()
+        const content = data[value]
         if (content !== undefined) {
             if (subscriberCallback) subscriberCallback(content)
             return content.value
         }
-
-        return match
+        
+        const relevantData = Object.keys(data).filter((item) => {
+            if (!value.includes(item)) return false
+            if (subscriberCallback) subscriberCallback(data[item])
+            return true
+        })
+        return relevantData.length > 0
+            ? Function(...relevantData, `return (${ value })`)(...(relevantData.map((key) => data[key].value)))
+            : Function(`return (${ value })`)()
     })
 }
 
