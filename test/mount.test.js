@@ -42,6 +42,11 @@ describe('compile', () => {
         const template = compile(data, ['<%=', '%>'])`<div>Hello <%= string %></div>`
         expect(template.textContent).toBe(`Hello world`)
     })
+    it('accepts multiple children at root', () => {
+        const data = reactive({ string: 'world' })
+        const template = compile(data)`<div>Hello {{ string }}</div><div>{{ string }} hello!</div>`
+        expect(template.textContent).toBe(`Hello worldworld hello!`)
+    })    
     describe('textContent', () => {
         it('interpolates node content with data', () => {
             const data = reactive({ string: 'world' })

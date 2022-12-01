@@ -93,10 +93,11 @@ export const compile = (data, delimiters = ['{{', '}}']) => {
     return (template) => {
         const domTree = document.createDocumentFragment()
         const html = parser.parseFromString(template[0], 'text/html').body.children
-        
-        for (const child of html) {
+
+        for (const child of Array.from(html)) {
             domTree.appendChild(child)
         }
+
         for (const child of domTree.children) {
             compileNode(child, data)
         }
