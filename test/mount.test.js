@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from 'vitest'
+import { describe, expect, it, beforeEach, vi } from 'vitest'
 import { compile,  render, reactive } from '@/interface.js'
 
 beforeEach(() => {
@@ -35,6 +35,12 @@ describe('reactive render', () => {
         data.num1 = 2
         expect(document.body.textContent).toBe('My favorite number is 4')
     })
+    it('event handlers register changes in data they reference', (() => {
+        const data = reactive({ num: 0, clickHandler: function() { this.num++ } })
+        const template = compile(data)`<button @click="clickHandler">Click me: {{ num }}</button>`
+        template.querySelector('button').click()
+        expect(template.querySelector('button').textContent).toBe('Click me: 1')
+    }))
 })
 describe('compile', () => {
     it('accepts different delimiters', () => {
@@ -95,6 +101,12 @@ describe('compile', () => {
             const data = reactive({ num1: 1, num2: 2 })
             const template = compile(data)`<div foo="{{ num1 + num2 }}">Hello world!</div>`
             expect(template.querySelector('div').getAttribute('foo')).toBe('3')
+        })
+        it('adds event listener to element when passed attribute `@[event]`', () => {
+            const data = reactive({ clickHandler: vi.fn()})
+            const template = compile(data)`<button @click="clickHandler">Click me</button>`
+            template.querySelector('button').click()
+            expect(data.clickHandler.value).toHaveBeenCalled()
         })
     })
 })

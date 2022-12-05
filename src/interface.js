@@ -30,8 +30,8 @@ const replaceDelimiters = (data, text, subscriberCallback) => {
             return true
         })
         return relevantData.length > 0
-            ? Function(...relevantData, `return (${ value })`)(...(relevantData.map((key) => data[key].value)))
-            : Function(`return (${ value })`)()
+            ? Function(...relevantData, `return (${ value })`).bind(data)(...(relevantData.map((key) => data[key].value)))
+            : Function(`return (${ value })`).bind(data)()
     })
 }
 
@@ -42,10 +42,12 @@ const compileNode = (root, data) => {
     else if (root.nodeType === Node.ELEMENT_NODE) {
         const subscriber = new Subscriber(root, 'attr')
         for (const attribute of root.attributes) {
-            root.setAttribute(attribute.nodeName, replaceDelimiters(data, attribute.value, (data) => {
-                subscriber.addAttr(attribute.nodeName)
-                data.subscribers.add(subscriber)
-            }))
+            attribute.nodeName[0] === '@'
+                ? root.addEventListener(attribute.nodeName.substring(1), data[attribute.value].value.bind(data))
+                : root.setAttribute(attribute.nodeName, replaceDelimiters(data, attribute.value, (data) => {
+                    subscriber.addAttr(attribute.nodeName)
+                    data.subscribers.add(subscriber)
+                }))
         }
     }
 
@@ -63,7 +65,7 @@ export const reactive = (data) => {
     for (const [key, value] of Object.entries(data)) {
         reactiveData[key] = {
             value: value,
-            subscribers: new Set()
+            subscribers: new Set(),
         }
         Object.defineProperty(data, key, {
             get () { return reactiveData[key] },
