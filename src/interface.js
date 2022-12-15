@@ -42,12 +42,27 @@ const compileNode = (root, data) => {
     else if (root.nodeType === Node.ELEMENT_NODE) {
         const subscriber = new Subscriber(root, 'attr')
         for (const attribute of root.attributes) {
-            attribute.nodeName[0] === '@'
-                ? root.addEventListener(attribute.nodeName.substring(1), data[attribute.value].value.bind(data))
-                : root.setAttribute(attribute.nodeName, replaceDelimiters(data, attribute.value, (data) => {
-                    subscriber.addAttr(attribute.nodeName)
-                    data.subscribers.add(subscriber)
-                }))
+            switch(attribute.nodeName[0]) {
+                case '@':
+                    root.addEventListener(attribute.nodeName.substring(1), data[attribute.value].value.bind(data))
+                    break
+                case '&':
+                    const loopName = attribute.value
+                    root.removeAttribute(attribute.nodeName)
+                    const loopNodes = []
+                    const loopData = data[attribute.nodeName.substring(attribute.nodeName.indexOf('-')+1)].value
+                    for (let i = 0; i < loopData.length; i++) {
+                        const newNode = compileNode(root.cloneNode(true), { ...data, [loopName]: { value: loopData[i], subscribers: new Set() }})
+                        loopNodes.push(newNode)
+                    }
+                    root.replaceWith(...loopNodes)
+                    break
+                default:
+                    root.setAttribute(attribute.nodeName, replaceDelimiters(data, attribute.value, (data) => {
+                        subscriber.addAttr(attribute.nodeName)
+                        data.subscribers.add(subscriber)
+                    }))
+            }
         }
     }
 

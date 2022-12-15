@@ -109,4 +109,11 @@ describe('compile', () => {
             expect(data.clickHandler.value).toHaveBeenCalled()
         })
     })
+    describe('for loop', () => {
+        it('compiles all in a loop of elements', () => {
+            const data = reactive({ messages: ['Hello', 'World'] })
+            const template = compile(data)`<div><p &each-messages="message">{{ message }}</p></div>`
+            expect(template.textContent).toBe(`Hello World`)
+        })
+    })
 })
