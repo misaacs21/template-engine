@@ -38,6 +38,12 @@ describe('reactive render', () => {
         template.querySelector('button').click()
         expect(template.querySelector('button').textContent).toBe('Click me: 1')
     }))
+    it.only('updates compiled loop of elements on data change', () => {
+        const { template, data } = compile({ messages: ['Hello', 'World'] })`<div><p &each-messages="message">{{ message }}</p></div>`
+        render(template)
+        data.messages = ['Foo', 'Bar']
+        expect(template.textContent).toBe('FooBar')
+    })
 })
 describe('compile', () => {
     it('accepts different delimiters', () => {
