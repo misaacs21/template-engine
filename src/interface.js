@@ -19,7 +19,7 @@ const replaceDelimiters = ({ reactiveData, data }, text, subscriberCallback) => 
     return text.replace(templateRegex, (match) => {
         const value = match.substring(templateDelimiters[0].length, match.length - templateDelimiters[1].length).trim()
         const content = reactiveData[value]
-        console.log('CONTENT', content)
+
         if (content !== undefined) {
             if (subscriberCallback) subscriberCallback(content)
             return data[value]
@@ -30,6 +30,7 @@ const replaceDelimiters = ({ reactiveData, data }, text, subscriberCallback) => 
             if (subscriberCallback) subscriberCallback(reactiveData[item])
             return true
         })
+
         return relevantData.length > 0
             ? Function(...relevantData, `return (${ value })`).bind(data)(...(relevantData.map((key) => data[key])))
             : Function(`return (${ value })`).bind(data)()
@@ -37,7 +38,6 @@ const replaceDelimiters = ({ reactiveData, data }, text, subscriberCallback) => 
 }
 
 const compileNode = (root, { reactiveData, data }) => {
-    console.log('ROOT', [root.tagName, root.textContent, root.childNodes.length, root.outerHTML])
     if (root.nodeType === Node.TEXT_NODE) {
         root.textContent = replaceDelimiters({ reactiveData, data }, root.textContent, (data) => data.subscribers.add(new Subscriber(root, 'text')))
     }
@@ -51,22 +51,17 @@ const compileNode = (root, { reactiveData, data }) => {
                 case '&':
                     root.removeAttribute(attribute.nodeName)
                     const loopNodes = []
-                    const loopData = data[attribute.nodeName.substring(attribute.nodeName.indexOf('-')+1)]
+                    const loopName = attribute.nodeName.substring(attribute.nodeName.indexOf('-')+1)
+                    const loopData = data[loopName]
                     for (let i = 0; i < loopData.length; i++) {
-                        const loopName = `${attribute.value}-${i}`
-                        // how to get loopName accessed in replaceDelimiters? And this wouldn't work if length of data changed...
-                        data[loopName] = loopData[i]
-                        reactive(data, reactiveData)
                         let newNode = root.cloneNode(true)
-                        newNode.textContent = newNode.textContent.replace(templateRegex, `${templateDelimiters[0]} ${loopName} ${templateDelimiters[1]}`)
+                        newNode.textContent = newNode.textContent.replace(templateRegex, `${templateDelimiters[0]} ${loopName}[${i}] ${templateDelimiters[1]}`)
                         newNode = compileNode(newNode, { reactiveData, data })
                         loopNodes.push(newNode)
                     }
-                    console.log('replacing root...', root.childNodes.length)
                     root.replaceWith(...loopNodes)
                     root.remove()
                     root.replaceChildren()
-                    console.log('replaced root...', root.childNodes.length)
                     break
                 default:
                     root.setAttribute(attribute.nodeName, replaceDelimiters({ reactiveData, data }, attribute.value, (data) => {
@@ -96,8 +91,6 @@ const reactive = (data, reactiveData) => {
         Object.defineProperty(data, key, {
             get () { return reactiveData[key].value },
             set(val) {
-                console.log('current reactiveData', reactiveData)
-                console.log('setting...', [key, val, reactiveData[key].subscribers.length])
                 reactiveData[key].value = val
                 for (const subscriber of reactiveData[key].subscribers) {
                     switch (subscriber.updateType) {
