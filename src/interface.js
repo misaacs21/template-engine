@@ -82,6 +82,21 @@ const compileNode = (root, { reactiveData, data }) => {
     return root
 }
 
+const updateNodes = (subscribers, reactiveData, baseData, newVal) => {
+    for (const subscriber of subscribers) {
+        switch (subscriber.updateType) {
+            case 'text':
+                subscriber.domElement.textContent = replaceDelimiters({ reactiveData, data: baseData }, subscriber.templateContent)
+                break
+            case 'attr':
+                for (const attr of subscriber.attrs) {
+                    subscriber.domElement.setAttribute(attr, newVal)
+                }
+                break
+        }
+    }
+}
+
 const reactive = (data, reactiveData) => {
     for (const [key, value] of Object.entries(data)) {
         reactiveData[key] = {
@@ -92,20 +107,18 @@ const reactive = (data, reactiveData) => {
             get () { return reactiveData[key].value },
             set(val) {
                 reactiveData[key].value = val
-                for (const subscriber of reactiveData[key].subscribers) {
-                    switch (subscriber.updateType) {
-                        case 'text':
-                            subscriber.domElement.textContent = replaceDelimiters({ reactiveData, data: this }, subscriber.templateContent)
-                            break
-                        case 'attr':
-                            for (const attr of subscriber.attrs) {
-                                subscriber.domElement.setAttribute(attr, val)
-                            }
-                            break
-                    }
-                }
+                updateNodes(reactiveData[key].subscribers, reactiveData, this, val)
             }
         })
+        if (typeof value === 'object') {
+            data[key] = new Proxy(data[key], {
+                set (target, name, val) {
+                    target[name] = val
+                    updateNodes(reactiveData[key].subscribers, reactiveData, data, val)
+                    return true
+                }
+            })
+        }
     }
     return data
 }

@@ -38,11 +38,17 @@ describe('reactive render', () => {
         template.querySelector('button').click()
         expect(template.querySelector('button').textContent).toBe('Click me: 1')
     }))
-    it('updates compiled loop of elements on data change', () => {
+    it('updates compiled loop of elements on data change (shallow reactivity)', () => {
         const { template, data } = compile({ messages: ['Hello', 'World'] })`<div><p &each-messages="message">{{ message }}</p></div>`
         render(template)
         data.messages = ['Foo', 'Bar']
         expect(document.body.textContent).toBe('FooBar')
+    })
+    it('updates compiled loop of elements on data change (deep reactivity)', () => {
+        const { template, data } = compile({ messages: ['Hello', 'World'] })`<div><p &each-messages="message">{{ message }}</p></div>`
+        render(template)
+        data.messages[0] = 'Foo'
+        expect(document.body.textContent).toBe('FooWorld')
     })
 })
 describe('compile', () => {
