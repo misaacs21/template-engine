@@ -190,10 +190,8 @@ export const compile = (data, delimiters = ['{{', '}}']) => {
     templateDelimiters = delimiters
     templateRegex = new RegExp(`${templateDelimiters[0]}.*?${templateDelimiters[1]}`, 'gs')
     return (template) => {
-        // make more flexible...doesn't work with imported full html
         const domTree = document.createDocumentFragment()
-        const html = parser.parseFromString(template[0].trim(), 'text/html').body.children
-
+        const html = parser.parseFromString(template.trim(), 'text/html').body.children.main.children
         for (const child of Array.from(html)) {
             domTree.appendChild(child)
         }
@@ -208,8 +206,10 @@ export const compile = (data, delimiters = ['{{', '}}']) => {
         }
     }
 }
-
-// make more flexible...doesn't work with imported full html
 export const render = (template, root = document.body) => {
-    root.appendChild(template)
+    const main = document.createElement('div')
+    main.setAttribute('id', 'main')
+
+    main.appendChild(template)
+    document.body.replaceChild(main, document.body.firstElementChild);
 }

@@ -112,4 +112,10 @@ describe('compile', () => {
             expect(template.textContent).toBe('HelloWorld')
         })
     })
+    describe.skip('conditional', () => {
+        it('compiles elements conditionally', () => {
+            const { template } = compile({ showDiv: true })`<div>{{ showDiv && (<div>Hello World</div>) }}</div>`
+            expect(template.textContent).toBe('Hello World')
+        })
+    })
 })
