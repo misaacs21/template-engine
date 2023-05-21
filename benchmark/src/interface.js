@@ -83,7 +83,7 @@ const compileNode = (root, { reactiveData, data }) => {
                     root.replaceWith(...loopNodes)
                     root.remove()
                     root.replaceChildren()
-                    reactiveData[loopName].subscribers.add(new Subscriber(parent, 'loop', {
+                    reactiveData[loopName].loopSubscribers.add(new Subscriber(parent, 'loop', {
                         loopNodes,
                         loopName,
                         loopDataName: dataName,
@@ -109,21 +109,11 @@ const compileNode = (root, { reactiveData, data }) => {
     return root
 }
 
-const updateNodes = (subscribers, reactiveData, baseData, newVal) => {
-    // should update loop before anything within the loop if the loop is changing or it errors...but how?
-    for (const subscriber of subscribers) {
+const updateNodes = (subscribers, loopSubscribers, reactiveData, baseData, newVal) => {
+    for (const subscriber of loopSubscribers) {
         switch (subscriber.updateType) {
-            case 'text':
-                subscriber.domElement.textContent = replaceDelimiters({ reactiveData, data: baseData }, subscriber.templateContent)
-                break
-            case 'attr':
-                for (const attr of subscriber.attrs) {
-                    subscriber.domElement.setAttribute(attr, newVal)
-                }
-                break
             case 'loop':
                 for (let i = 0; i < subscriber.loopNodes.length; i++) {
-                    // how do i remove the potentially unrelated subscribers I'm getting rid of here?
                     subscriber.domElement.removeChild(subscriber.loopNodes[i])
                     subscriber.loopNodes[i].remove()
                     subscriber.loopNodes[i].replaceChildren()
@@ -141,6 +131,21 @@ const updateNodes = (subscribers, reactiveData, baseData, newVal) => {
                 break
         }
     }
+    for (const subscriber of subscribers) {
+        if (!subscriber.domElement.isConnected) subscribers.delete(subscriber)
+        else { 
+            switch (subscriber.updateType) {
+                case 'text':
+                    subscriber.domElement.textContent = replaceDelimiters({ reactiveData, data: baseData }, subscriber.templateContent)
+                    break
+                case 'attr':
+                    for (const attr of subscriber.attrs) {
+                        subscriber.domElement.setAttribute(attr, newVal)
+                    }
+                    break
+            }
+        }
+    }
 }
 
 const reactive = (data, reactiveData) => {
@@ -148,34 +153,30 @@ const reactive = (data, reactiveData) => {
         reactiveData[key] = {
             value: value,
             subscribers: new Set(),
+            loopSubscribers: new Set(),
         }
-        // make nested object properties/objects in array more flexible...
+        // return proxy from get for nested object properties within array, but kills browser
         Object.defineProperty(data, key, {
             get () { return reactiveData[key].value },
-            set(val) {
-                reactiveData[key].value = val
-                updateNodes(reactiveData[key].subscribers, reactiveData, this, val)
-                if (Array.isArray(reactiveData[key].value)) {
-                    const array = reactiveData[key].value
-                    for (let i = 0; i < array.length; i++) {
-                        if (typeof array[i] === 'object') {
-                            array[i] = new Proxy(array[i], {
-                                set (target, name, val) {
-                                    target[name] = val
-                                    updateNodes(reactiveData[key].subscribers, reactiveData, data, val)        
-                                    return true
-                                }
-                            })
+            set(value) {
+                reactiveData[key].value = value
+                if (value && typeof value === 'object') {
+                    reactiveData[key].value = new Proxy(reactiveData[key].value, {
+                        set (target, name, val) {
+                            target[name] = val
+                            updateNodes(reactiveData[key].subscribers, reactiveData[key].loopSubscribers, reactiveData, data, val)
+                            return true
                         }
-                    }
-                }
+                    })
+                }        
+                updateNodes(reactiveData[key].subscribers, reactiveData[key].loopSubscribers, reactiveData, this, value)
             }
         })
         if (value && typeof value === 'object') {
-            data[key] = new Proxy(data[key], {
+            reactiveData[key].value = new Proxy(reactiveData[key].value, {
                 set (target, name, val) {
                     target[name] = val
-                    updateNodes(reactiveData[key].subscribers, reactiveData, data, val)
+                    updateNodes(reactiveData[key].subscribers, reactiveData[key].loopSubscribers, reactiveData, data, val)
                     return true
                 }
             })

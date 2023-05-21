@@ -35,8 +35,9 @@ describe('reactive render', () => {
         const { template } = compile({ num: 0, clickHandler: function () { this.num += 1 }})`
             <button @click="clickHandler">Click me: {{ num }}</button>
         `
-        template.querySelector('button').click()
-        expect(template.querySelector('button').textContent).toBe('Click me: 1')
+        render(template)
+        document.body.querySelector('button').click()
+        expect(document.body.querySelector('button').textContent).toBe('Click me: 1')
     }))
     it('updates compiled loop of elements on data change (shallow reactivity)', () => {
         const { template, data } = compile({ messages: ['Hello', 'World'] })`<div><p &each-messages="message">{{ message }}</p></div>`
